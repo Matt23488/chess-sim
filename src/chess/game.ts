@@ -1,119 +1,6 @@
 import { match } from 'ts-pattern';
 
-export const withPieces = <TSpecific extends GamePieceType>(pieces: Record<TSpecific, PieceMoveCalculator<TSpecific>>) => {
-    const beginGame: GameConstructor<TSpecific> = (initialState: BoardState<TSpecific> | undefined) => {
-        const state = [...(initialState ?? standardInitialState).map(p => ({ ...p, possibleMoves: [], moveHistory: [] }))] as ActiveBoardState<TSpecific>;
-        const pieceLookup = new Map<string, ActiveGamePiece<TSpecific>>();
-        const allCaptures: ActiveBoardState<TSpecific> = [];
-
-        const history: [[File, Rank], [File, Rank], ActiveGamePiece<TSpecific>[]][] = [];
-
-        const buildCache = () => {
-            // Update the position lookup table
-            pieceLookup.clear();
-            state.forEach(piece => pieceLookup.set(`${piece.file}${piece.rank}`, piece));
-
-            // Update the possible moves for each piece
-            state.forEach(piece => piece.possibleMoves = pieces[piece.type](piece, pieceLookup, history));
-        };
-
-        buildCache();
-
-        const game: ChessGame<TSpecific> = {
-            getPiece: (file, rank) => pieceLookup.get(`${file}${rank}`),
-            movePiece: ([fromFile, fromRank], [toFile, toRank]) => {
-                const piece = pieceLookup.get(`${fromFile}${fromRank}`);
-                if (!piece) return;
-
-                const move = piece.possibleMoves.find(({ destination: [f, r]}) => f === toFile && r === toRank);
-                if (!move) return;
-
-                piece.file = toFile;
-                piece.rank = toRank;
-
-                // TODO: This isn't accounted for in the history.
-                // Probably should rethink that API
-                move.otherMovedPieces.forEach(([piece, f, r]) => {
-                    piece.file = f;
-                    piece.rank = r;
-                });
-
-                const { captures } = move;
-                captures.forEach(capture => {
-                    allCaptures.push(capture);
-                    state.splice(state.indexOf(capture), 1);
-                });
-
-                const to = [toFile, toRank] as [File, Rank];
-                history.push([[fromFile, fromRank], to, captures]);
-                piece.moveHistory.push(to);
-                buildCache();
-            },
-            undo: () => {
-                const lastMove = history.pop();
-                if (!lastMove) return;
-
-                const [[fromFile, fromRank], [toFile, toRank], captures] = lastMove;
-
-                const piece = pieceLookup.get(`${toFile}${toRank}`)!;
-                piece.file = fromFile;
-                piece.rank = fromRank;
-                piece.moveHistory.pop();
-
-                captures.forEach(capture => {
-                    state.push(capture);
-                    allCaptures.slice(captures.indexOf(capture), 1);
-                });
-
-                buildCache();
-            },
-
-            pieces: state,
-            capturedPieces: allCaptures,
-        };
-
-        return game;
-    };
-
-    const piecePool: PiecePool<TSpecific> = {
-        beginGame,
-    };
-
-    return piecePool;
-};
-
-export const withStandardPieces = () => withPieces(standardPieces);
-export const withCustomPieces = <TCustom extends CustomPieceType>(customPieces: Record<TCustom, PieceMoveCalculator<TCustom>>) => withPieces({ ...standardPieces, ...customPieces }) as PiecePool<StandardPieceType | TCustom>;
-
-export type ActiveBoardState<TSpecific extends GamePieceType> = ActiveGamePiece<TSpecific>[];
-export type BoardState<TSpecific extends GamePieceType> = GamePiece<TSpecific>[];
-type GameConstructor<TSpecific extends GamePieceType> =
-    StandardPieceType extends TSpecific
-    ? (initialState?: BoardState<TSpecific>) => ChessGame<TSpecific>
-    : (initialState: BoardState<TSpecific>) => ChessGame<TSpecific>;
-
-export interface PiecePool<TSpecific extends GamePieceType> {
-    beginGame: GameConstructor<TSpecific>;
-}
-export interface ChessGame<TSpecific extends GamePieceType> {
-    getPiece: (file: File, rank: Rank) => ActiveGamePiece<TSpecific> | undefined;
-    movePiece: (from: [File, Rank], to: [File, Rank]) => void;
-    undo: () => void;
-    pieces: ActiveGamePiece<TSpecific>[];
-    capturedPieces: ActiveGamePiece<TSpecific>[];
-}
-export interface ActiveGamePiece<TSpecific extends GamePieceType> extends GamePiece<TSpecific> {
-    possibleMoves: ReturnType<PieceMoveCalculator<TSpecific>>;
-    moveHistory: [File, Rank][];
-}
-export interface GamePiece<TSpecific extends GamePieceType> {
-    type: TSpecific;
-    file: File;
-    rank: Rank;
-    player: Player;
-}
-
-export const standardInitialState: readonly GamePiece<StandardPieceType>[] = Object.freeze([
+export const standardInitialState: readonly GamePiece[] = Object.freeze([
     { type: 'rook', file: 'a', rank: 1, player: 'white' },
     { type: 'knight', file: 'b', rank: 1, player: 'white' },
     { type: 'bishop', file: 'c', rank: 1, player: 'white' },
@@ -148,185 +35,169 @@ export const standardInitialState: readonly GamePiece<StandardPieceType>[] = Obj
     { type: 'pawn', file: 'h', rank: 7, player: 'black' },
 ]);
 
-interface MoveCalculationResult<TSpecific extends GamePieceType> {
-    destination: [File, Rank];
-    otherMovedPieces: [ActiveGamePiece<TSpecific>, File, Rank][];
-    captures: ActiveGamePiece<TSpecific>[];
-}
-
-const rayCast = <TSpecific extends GamePieceType>(pieceLookup: Map<string, ActiveGamePiece<TSpecific>>, [file, rank]: [File, Rank], [x, y]: [RayCastDirection, RayCastDirection], length?: number) => {
-    length = length ?? 8;
-    const validSpaces: [File, Rank, ActiveGamePiece<TSpecific> | undefined][] = [];
-
-    let nextFile = offsetFile(file, x);
-    let nextRank = offsetRank(rank, y);
-    let piece = pieceLookup.get(`${nextFile}${nextRank}`);
-    let count = 0;
-    while (nextFile && nextRank && count < length) {
-        validSpaces.push([nextFile, nextRank, piece]);
-        if (piece) break;
-
-        nextFile = offsetFile(nextFile, x);
-        nextRank = offsetRank(nextRank, y);
-        piece = pieceLookup.get(`${nextFile}${nextRank}`);
-        count++;
-    }
-
-    return validSpaces;
-};
-
 // TODO: Move somewhere else
 const flattenArray = <T>(arr: T[][]) => ([] as T[]).concat.apply([], arr);
 
-const multiRayCast = <TSpecific extends GamePieceType>(pieceLookup: Map<string, ActiveGamePiece<TSpecific>>, piece: ActiveGamePiece<TSpecific>, ...rays: [RayCastDirection, RayCastDirection, number | undefined][]) =>
-    flattenArray(rays.map(([x, y, length]) =>
-        rayCast(pieceLookup, [piece.file, piece.rank], [x, y], length)
-        .map<MoveCalculationResult<TSpecific> | undefined>(([file, rank, otherPiece]) => otherPiece && otherPiece.player !== piece.player ? { destination: [file, rank], otherMovedPieces: [], captures: [otherPiece] } : otherPiece ? undefined : { destination: [file, rank], otherMovedPieces: [], captures: [] })
-        .filter((result): result is MoveCalculationResult<TSpecific> => typeof result !== 'undefined')));
-
-// TODO: Promotion needs to be something that is part of the return value.
-export type PieceMoveCalculator<TSpecific extends GamePieceType> = (piece: ActiveGamePiece<TSpecific>, pieceLookup: Map<string, ActiveGamePiece<TSpecific>>, history: [[File, Rank], [File, Rank], ActiveGamePiece<TSpecific>[]][]) => MoveCalculationResult<TSpecific>[];
-
-// TODO: instead of a piece definition, break them into rules, that way you can turn them off.
-// I think the API will be much simpler and cleaner that way too.
-const standardPieces: Record<StandardPieceType, PieceMoveCalculator<StandardPieceType>> = Object.freeze({
-    pawn: (piece, pieceLookup, history) => {
-        const moves: MoveCalculationResult<StandardPieceType>[] = [];
-        // TODO
-        const promotionRank = piece.player === 'white' ? 8 : 1;
-
-        // Standard move forward
-        let rank = piece.player === 'white' ? piece.rank + 1 : piece.rank - 1;
-        let otherPiece = pieceLookup.get(`${piece.file}${rank}`);
-        if (Rank.guard(rank) && !otherPiece) {
-            moves.push({
-                destination: [piece.file, rank],
-                otherMovedPieces: [],
-                captures: [],
-            });
-        }
-
-        // Quick Start
-        if (piece.moveHistory.length === 0) {
-            rank = piece.player === 'white' ? 4 : 5;
-            const castResult = rayCast(pieceLookup, [piece.file, piece.rank], [0, piece.player === 'white' ? 1 : -1], 2);
-            if (castResult.length === 2) {
-                if (!castResult[1][2]) moves.push({
-                    destination: [piece.file, rank as Rank],
-                    otherMovedPieces: [],
-                    captures: [],
-                });
-            }
-        }
-
-        // Captures
-        rank = piece.player === 'white' ? piece.rank + 1 : piece.rank - 1;
-        const otherFiles = [offsetFile(piece.file, 1), offsetFile(piece.file, -1)].filter(file => file);
-        otherFiles.forEach(file => {
-            // Standard Capture
-            otherPiece = pieceLookup.get(`${file!}${rank}`);
-            if (otherPiece && otherPiece.player !== piece.player) {
-                moves.push({
-                    destination: [file!, rank as Rank],
-                    otherMovedPieces: [],
-                    captures: [otherPiece],
-                });
-            }
-
-            // En Passant
-            if (piece.rank !== (piece.player === 'white' ? 5 : 4)) return;
-
-            otherPiece = pieceLookup.get(`${file!}${rank + (piece.player === 'white' ? -1 : 1)}`);
-            if (otherPiece && otherPiece.moveHistory.length === 1 && otherPiece.moveHistory[0] === history[history.length - 1][1]) {
-                moves.push({
-                    destination: [file!, rank as Rank],
-                    otherMovedPieces: [],
-                    captures: [otherPiece],
-                });
-            }
-        });
-
-        return moves;
-    },
-    rook: (piece, pieceLookup) => multiRayCast(pieceLookup, piece, [-1, 0, undefined], [1, 0, undefined], [0, -1, undefined], [0, 1, undefined]),
-    knight: (piece, pieceLookup) => {
-        const moves: MoveCalculationResult<StandardPieceType>[] = [];
-
-        const potentials: [File | undefined, Rank | undefined][] = [
-            [offsetFile(piece.file, -1), offsetRank(piece.rank, 2)],
-            [offsetFile(piece.file, 1), offsetRank(piece.rank, 2)],
-            [offsetFile(piece.file, -2), offsetRank(piece.rank, 1)],
-            [offsetFile(piece.file, 2), offsetRank(piece.rank, 1)],
-            [offsetFile(piece.file, -2), offsetRank(piece.rank, -1)],
-            [offsetFile(piece.file, 2), offsetRank(piece.rank, -1)],
-            [offsetFile(piece.file, -1), offsetRank(piece.rank, -2)],
-            [offsetFile(piece.file, 1), offsetRank(piece.rank, -2)],
-        ];
-        const actuals = potentials.filter((position): position is [File, Rank] => !(!position[0] || !position[1]));
-
-        actuals.forEach(([file, rank]) => {
-            const otherPiece = pieceLookup.get(`${file}${rank}`);
-            if (file && rank && (!otherPiece || otherPiece.player !== piece.player)) {
-                moves.push({
-                    destination: [file, rank],
-                    otherMovedPieces: [],
-                    captures: otherPiece ? [otherPiece] : [],
-                });
-            }
-        });
-
-        return moves;
-    },
-    bishop: (piece, pieceLookup) => multiRayCast(pieceLookup, piece, [-1, -1, undefined], [-1, 1, undefined], [1, -1, undefined], [1, 1, undefined]),
-    queen: (piece, pieceLookup, history) => [
-        ...standardPieces.rook(piece, pieceLookup, history),
-        ...standardPieces.bishop(piece, pieceLookup, history),
-    ],
-    king: (piece, pieceLookup) => {
-        const moves = multiRayCast(
-            pieceLookup,
-            piece,
-            [-1, -1, 1],
-            [-1, 0, 1],
-            [-1, 1, 1],
-            [0, -1, 1],
-            [0, 1, 1],
-            [1, -1, 1],
-            [1, 0, 1],
-            [1, 1, 1],
-        );
-
-        // Castling
-        if (piece.moveHistory.length === 0) {
-            const rank = piece.player === 'white' ? 1 : 8;
-            const otherPieces = [...pieceLookup.values()].filter(({ player }) => player !== piece.player);
+const standardRules: GameRule[] = [
+    {
+        name: 'Pawn Quick Start',
+        pieceType: 'pawn',
+        apply: (piece, state) => {
+            if (piece.moveHistory.length > 0) return;
             
-            // King-side castle
-            let rook = pieceLookup.get(`h${rank}`);
-            let path = [['f', rank], ['g', rank]];
-            if (rook && rook.type === 'rook' && rook.moveHistory.length === 0 && !path.some(([f, r]) => pieceLookup.get(`${f}${r}`)) && !path.some(path => otherPieces.some(p => p.possibleMoves.some(m => m.destination[0] === path[0] && m.destination[1] === path[1])))) {
-                moves.push({
-                    destination: ['g', rank],
-                    otherMovedPieces: [[rook, 'f', rank]],
-                    captures: [],
-                });
-            }
+            const result = rayCast(state, [piece.file, piece.rank], [0, piece.player === 'white' ? 1 : -1], 2);
+            if (result.length !== 2) return;
+            
+            const [,[toFile, toRank]] = result;
 
-            // Queen-side castle
-            rook = pieceLookup.get(`a${rank}`);
-            path = [['c', rank], ['d', rank]];
-            if (rook && rook.type === 'rook' && rook.moveHistory.length === 0 && !path.some(([f, r]) => pieceLookup.get(`${f}${r}`)) && !path.some(path => otherPieces.some(p => p.possibleMoves.some(m => m.destination[0] === path[0] && m.destination[1] === path[1])))) {
-                moves.push({
-                    destination: ['c', rank],
-                    otherMovedPieces: [[rook, 'd', rank]],
-                    captures: [],
-                });
-            }
-        }
+            piece.possibleMoves.push({
+                movedPieces: [{
+                    piece,
+                    from: [piece.file, piece.rank],
+                    to: [toFile, toRank],
+                }],
+                capturedPieces: [],
+            });
+        },
+    }, {
+        name: 'Pawn Standard Movement',
+        pieceType: 'pawn',
+        apply: (piece, state) => {
+            const penultimateRank = (piece.player === 'white' ? 7 : 1);
+            if (piece.rank === penultimateRank) return;
 
-        return moves;
-    },
-});
+            const toRank = offsetRank(piece.rank, piece.player === 'white' ? 1 : -1);
+            const otherPiece = state.positionLookup.get(`${piece.file}${toRank}`);
+            if (otherPiece) return;
+
+            piece.possibleMoves.push({
+                movedPieces: [{
+                    piece,
+                    from: [piece.file, piece.rank],
+                    to: [piece.file, toRank!],
+                }],
+                capturedPieces: [],
+            });
+        },
+    }, {
+        name: 'Pawn Standard Capture',
+        pieceType: 'pawn',
+        apply: (piece, state) => {
+            const targetRank = offsetRank(piece.rank, piece.player === 'white' ? 1 : -1)!;
+            const targets: [File, Rank][] = [];
+            let targetFile = offsetFile(piece.file, -1);
+            if (targetFile) targets.push([targetFile, targetRank]);
+            targetFile = offsetFile(piece.file, 1);
+            if (targetFile) targets.push([targetFile, targetRank]);
+
+            targets.forEach(([file, rank]) => {
+                const otherPiece = state.positionLookup.get(`${file}${rank}`);
+                if (!otherPiece) return;
+
+                piece.possibleMoves.push({
+                    movedPieces: [{
+                        piece,
+                        from: [piece.file, piece.rank],
+                        to: [file, rank],
+                    }],
+                    capturedPieces: [otherPiece],
+                });
+            });
+        },
+    }, {
+        name: 'Pawn En Passant Capture',
+        pieceType: 'pawn',
+        apply: (piece, state) => {
+            const validRank = piece.player === 'white' ? 5 : 4;
+            if (piece.rank !== validRank) return;
+
+            const targets: [File, Rank][] = [];
+            let targetFile = offsetFile(piece.file, -1);
+            if (targetFile) targets.push([targetFile, validRank]);
+            targetFile = offsetFile(piece.file, 1);
+            if (targetFile) targets.push([targetFile, validRank]);
+
+            targets.forEach(([file, rank]) => {
+                const otherPiece = state.positionLookup.get(`${file}${rank}`);
+                if (!otherPiece || otherPiece.moveHistory.length !== 1) return;
+
+                const otherPieceLastMove = otherPiece.moveHistory[otherPiece.moveHistory.length - 1];
+                const lastMove = state.history[state.history.length - 1];
+                if (otherPieceLastMove !== lastMove || lastMove?.movedPieces[0].piece !== otherPiece) return;
+
+                piece.possibleMoves.push({
+                    movedPieces: [{
+                        piece,
+                        from: [piece.file, piece.rank],
+                        to: [file, piece.player === 'white' ? 6 : 3],
+                    }],
+                    capturedPieces: [otherPiece],
+                });
+            });
+        },
+    }, {
+        name: 'Knight Standard Movement',
+        pieceType: 'knight',
+        apply: (piece, state) => {
+            [
+                [offsetFile(piece.file, -1), offsetRank(piece.rank, 2)],
+                [offsetFile(piece.file, 1), offsetRank(piece.rank, 2)],
+                [offsetFile(piece.file, -2), offsetRank(piece.rank, 1)],
+                [offsetFile(piece.file, 2), offsetRank(piece.rank, 1)],
+                [offsetFile(piece.file, -2), offsetRank(piece.rank, -1)],
+                [offsetFile(piece.file, 2), offsetRank(piece.rank, -1)],
+                [offsetFile(piece.file, -1), offsetRank(piece.rank, -2)],
+                [offsetFile(piece.file, 1), offsetRank(piece.rank, -2)],
+            ]
+            .filter((target): target is [File, Rank] => !!target[0] && !!target[1])
+            .forEach(([file, rank]) => {
+                const otherPiece = state.positionLookup.get(`${file}${rank}`);
+                if (otherPiece && otherPiece.player === piece.player) return;
+
+                piece.possibleMoves.push({
+                    movedPieces: [{
+                        piece,
+                        from: [piece.file, piece.rank],
+                        to: [file, rank],
+                    }],
+                    capturedPieces: otherPiece ? [otherPiece] : [],
+                });
+            });
+        },
+    }, {
+        name: 'Rook Standard Movement',
+        pieceType: 'rook',
+        apply: (piece, state) => {
+            piece.possibleMoves.push(...multiRayCast(piece, state, [1, 0, 8], [-1, 0, 8], [0, 1, 8], [0, -1, 8]));
+        },
+    }, {
+        name: 'Bishop Standard Movement',
+        pieceType: 'bishop',
+        apply: (piece, state) => {
+            piece.possibleMoves.push(...multiRayCast(piece, state, [1, 1, 8], [-1, 1, 8], [1, -1, 8], [-1, -1, 8]));
+        },
+    }, {
+        name: 'Queen Standard Movement',
+        pieceType: 'queen',
+        apply: (piece, state) => {
+            piece.possibleMoves.push(...multiRayCast(
+                piece, state,
+                [1, 0, 8], [-1, 0, 8], [0, 1, 8], [0, -1, 8],
+                [1, 1, 8], [-1, 1, 8], [1, -1, 8], [-1, -1, 8],
+            ));
+        },
+    }, {
+        name: 'King Standard Movement',
+        pieceType: 'king',
+        apply: (piece, state) => {
+            piece.possibleMoves.push(...multiRayCast(
+                piece, state,
+                [1, 0, 1], [-1, 0, 1], [0, 1, 1], [0, -1, 1],
+                [1, 1, 1], [-1, 1, 1], [1, -1, 1], [-1, -1, 1],
+            ));
+        },
+    }, // TODO: Castling again
+];
 
 // // TODO: Move somewhere else
 const makeUnion = <TBase>() => <TUnion extends TBase>(...values: TUnion[]) => {
@@ -340,90 +211,199 @@ const makeUnion = <TBase>() => <TUnion extends TBase>(...values: TUnion[]) => {
 };
 
 export const Player = makeUnion<string>()('white', 'black');
-export type Player = typeof Player.type;
+export type Player = typeof Player.type; // eslint-disable-line
+export const switchPlayer = (player: Player): Player => player === 'white' ? 'black' : 'white';
 
 export const Rank = makeUnion<number>()(1, 2, 3, 4, 5, 6, 7, 8);
-export type Rank = typeof Rank.type;
+export type Rank = typeof Rank.type; // eslint-disable-line
 
 export const File = makeUnion<string>()('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h');
-export type File = typeof File.type;
+export type File = typeof File.type; // eslint-disable-line
 
 const offsetFile = (file: File, amount: number) =>
     match<[File, number], File | undefined>([file, amount])
-    .with(['a', 0], () => 'a')
-    .with(['a', 1], () => 'b')
-    .with(['a', 2], () => 'c')
-    .with(['a', 3], () => 'd')
-    .with(['a', 4], () => 'e')
-    .with(['a', 5], () => 'f')
-    .with(['a', 6], () => 'g')
-    .with(['a', 7], () => 'h')
-    .with(['b', -1], () => 'a')
-    .with(['b', 0], () => 'b')
-    .with(['b', 1], () => 'c')
-    .with(['b', 2], () => 'd')
-    .with(['b', 3], () => 'e')
-    .with(['b', 4], () => 'f')
-    .with(['b', 5], () => 'g')
-    .with(['b', 6], () => 'h')
-    .with(['c', -2], () => 'a')
-    .with(['c', -1], () => 'b')
-    .with(['c', 0], () => 'c')
-    .with(['c', 1], () => 'd')
-    .with(['c', 2], () => 'e')
-    .with(['c', 3], () => 'f')
-    .with(['c', 4], () => 'g')
-    .with(['c', 5], () => 'h')
-    .with(['d', -3], () => 'a')
-    .with(['d', -2], () => 'b')
-    .with(['d', -1], () => 'c')
-    .with(['d', 0], () => 'd')
-    .with(['d', 1], () => 'e')
-    .with(['d', 2], () => 'f')
-    .with(['d', 3], () => 'g')
-    .with(['d', 4], () => 'h')
-    .with(['e', -4], () => 'a')
-    .with(['e', -3], () => 'b')
-    .with(['e', -2], () => 'c')
-    .with(['e', -1], () => 'd')
-    .with(['e', 0], () => 'e')
-    .with(['e', 1], () => 'f')
-    .with(['e', 2], () => 'g')
-    .with(['e', 3], () => 'h')
-    .with(['f', -5], () => 'a')
-    .with(['f', -4], () => 'b')
-    .with(['f', -3], () => 'c')
-    .with(['f', -2], () => 'd')
-    .with(['f', -1], () => 'e')
-    .with(['f', 0], () => 'f')
-    .with(['f', 1], () => 'g')
-    .with(['f', 2], () => 'h')
-    .with(['g', -6], () => 'a')
-    .with(['g', -5], () => 'b')
-    .with(['g', -4], () => 'c')
-    .with(['g', -3], () => 'd')
-    .with(['g', -2], () => 'e')
-    .with(['g', -1], () => 'f')
-    .with(['g', 0], () => 'g')
-    .with(['g', 1], () => 'h')
-    .with(['h', -7], () => 'a')
-    .with(['h', -6], () => 'b')
-    .with(['h', -5], () => 'c')
-    .with(['h', -4], () => 'd')
-    .with(['h', -3], () => 'e')
-    .with(['h', -2], () => 'f')
-    .with(['h', -1], () => 'g')
-    .with(['h', 0], () => 'h')
+    .with(['a', 0], ['b', -1], ['c', -2], ['d', -3], ['e', -4], ['f', -5], ['g', -6], ['h', -7], () => 'a')
+    .with(['a', 1], ['b', 0], ['c', -1], ['d', -2], ['e', -3], ['f', -4], ['g', -5], ['h', -6], () => 'b')
+    .with(['a', 2], ['b', 1], ['c', 0], ['d', -1], ['e', -2], ['f', -3], ['g', -4], ['h', -5], () => 'c')
+    .with(['a', 3], ['b', 2], ['c', 1], ['d', 0], ['e', -1], ['f', -2], ['g', -3], ['h', -4], () => 'd')
+    .with(['a', 4], ['b', 3], ['c', 2], ['d', 1], ['e', 0], ['f', -1], ['g', -2], ['h', -3], () => 'e')
+    .with(['a', 5], ['b', 4], ['c', 3], ['d', 2], ['e', 1], ['f', 0], ['g', -1], ['h', -2], () => 'f')
+    .with(['a', 6], ['b', 5], ['c', 4], ['d', 3], ['e', 2], ['f', 1], ['g', 0], ['h', -1], () => 'g')
+    .with(['a', 7], ['b', 6], ['c', 5], ['d', 4], ['e', 3], ['f', 2], ['g', 1], ['h', 0], () => 'h')
     .otherwise(() => undefined);
 
 const offsetRank = (rank: Rank, amount: number) =>
     Rank.guard(rank + amount) ? rank + amount as Rank : undefined;
 
-export const StandardPieceType = makeUnion<string>()('pawn', 'rook', 'knight', 'bishop', 'queen', 'king');
-export type StandardPieceType = typeof StandardPieceType.type;
-
-export type CustomPieceType = Exclude<string, StandardPieceType>;
-export type GamePieceType = StandardPieceType | CustomPieceType;
-
 const RayCastDirection = makeUnion<number>()(-1, 0, 1);
-type RayCastDirection = typeof RayCastDirection.type;
+type RayCastDirection = typeof RayCastDirection.type; // eslint-disable-line
+
+export interface GameState {
+    activePieces: ActiveGamePiece[];
+    capturedPieces: ActiveGamePiece[];
+    positionLookup: Map<string, ActiveGamePiece>;
+    history: PieceMovement[];
+    playerTurn: Player;
+}
+
+export interface SubPieceMovement {
+    piece: ActiveGamePiece;
+    from: readonly [File, Rank];
+    to: readonly [File, Rank];
+}
+
+export interface PieceMovement {
+    movedPieces: SubPieceMovement[];
+    capturedPieces: ActiveGamePiece[];
+}
+
+// TODO: Make another one of these that is more general to affect the whole game?
+// Like, to activate the check state. They can run after all piece rules
+// and can modify the possible moves further. I think I will try that, but
+// I want to get the pieces moving normally first again.
+export interface GameRule {
+    name: string;
+    pieceType: string;
+    apply: (piece: ActiveGamePiece, state: GameState) => void;
+}
+
+export const beginGame = (pieces?: GamePiece[], rules?: GameRule[], includeStandardPiecesAndRules = true) => {
+    const state: GameState = {
+        activePieces: (includeStandardPiecesAndRules ? standardInitialState : []).concat(pieces ?? []).map(p => ({ ...p, possibleMoves: [], moveHistory: [] })),
+        capturedPieces: [],
+        positionLookup: new Map<string, ActiveGamePiece>(),
+        history: [],
+        playerTurn: 'white',
+    };
+
+    const allRules = Object.freeze((includeStandardPiecesAndRules ? standardRules : []).concat(rules ?? []));
+
+    const analyzeNewState = () => {
+        state.positionLookup.clear();
+        state.activePieces.forEach(piece => {
+            state.positionLookup.set(`${piece.file}${piece.rank}`, piece);
+            piece.possibleMoves = [];
+        });
+
+        allRules.forEach(({ pieceType, apply }) => state.activePieces.filter(p => p.type === pieceType).forEach(piece => apply(piece, state)));
+    };
+
+    analyzeNewState();
+
+    const game: ChessGame = {
+        // state
+        getPlayerTurn: () => state.playerTurn,
+        getCapturedPieces: () => Object.freeze([...state.capturedPieces]),
+        getPieceTypeAtPosition: (file, rank) => {
+            const piece = state.positionLookup.get(`${file}${rank}`);
+
+            return piece && [piece.type, piece.player];
+        },
+        getPossibleMovesAtPosition: (file, rank) => {
+            const piece = state.positionLookup.get(`${file}${rank}`);
+            if (!piece || piece.player !== state.playerTurn) return [];
+            return Object.freeze([...piece.possibleMoves]);
+        },
+        movePiece: (fromFile, fromRank, toFile, toRank) => {
+            const piece = state.positionLookup.get(`${fromFile}${fromRank}`);
+            if (!piece) return false;
+
+            const movement = piece.possibleMoves.find(move => move.movedPieces[0].piece === piece && move.movedPieces[0].to[0] === toFile && move.movedPieces[0].to[1] === toRank);
+            if (!movement) return false;
+
+            movement.movedPieces.forEach(({ piece, to: [file, rank]}) => {
+                piece.file = file;
+                piece.rank = rank;
+            });
+
+            movement.capturedPieces.forEach(piece => {
+                state.activePieces.splice(state.activePieces.indexOf(piece), 1);
+                state.capturedPieces.push(piece);
+            });
+
+            state.history.push(movement);
+            piece.moveHistory.push(movement);
+            state.playerTurn = switchPlayer(state.playerTurn);
+
+            analyzeNewState();
+            return true;
+        },
+        undo: () => {
+            const lastMovement = state.history.pop();
+            if (!lastMovement) return false;
+
+            lastMovement.capturedPieces.forEach(piece => {
+                state.capturedPieces.splice(state.capturedPieces.indexOf(piece), 1);
+                state.activePieces.push(piece);
+            });
+
+            lastMovement.movedPieces.forEach(({ piece, from: [file, rank] }, i) => {
+                if (i === 0) piece.moveHistory.pop();
+                piece.file = file;
+                piece.rank = rank;
+            });
+
+            state.playerTurn = switchPlayer(state.playerTurn);
+
+            analyzeNewState();
+            return true;
+        },
+    };
+
+    return game;
+};
+
+export interface GamePiece {
+    type: string;
+    file: File;
+    rank: Rank;
+    player: Player;
+}
+
+export interface ActiveGamePiece extends GamePiece {
+    possibleMoves: PieceMovement[];
+    moveHistory: PieceMovement[];
+}
+
+export interface ChessGame {
+    getPlayerTurn: () => Player;
+    getCapturedPieces: () => readonly GamePiece[];
+    getPieceTypeAtPosition: (file: File, rank: Rank) => [string, Player] | undefined;
+    getPossibleMovesAtPosition: (file: File, rank: Rank) => readonly PieceMovement[];
+    movePiece: (fromFile: File, fromRank: Rank, toFile: File, toRank: Rank) => boolean;
+    undo: () => boolean;
+}
+
+const rayCast = (state: GameState, [file, rank]: [File, Rank], [x, y]: [RayCastDirection, RayCastDirection], length?: number) => {
+    length = length ?? 8;
+    const validSpaces: [File, Rank, ActiveGamePiece | undefined][] = [];
+
+    let nextFile = offsetFile(file, x);
+    let nextRank = offsetRank(rank, y);
+    let piece = state.positionLookup.get(`${nextFile}${nextRank}`);
+    let count = 0;
+    while (nextFile && nextRank && count < length) {
+        validSpaces.push([nextFile, nextRank, piece]);
+        if (piece) break;
+
+        nextFile = offsetFile(nextFile, x);
+        nextRank = offsetRank(nextRank, y);
+        piece = state.positionLookup.get(`${nextFile}${nextRank}`);
+        count++;
+    }
+
+    return validSpaces;
+};
+
+const multiRayCast = (piece: ActiveGamePiece, state: GameState, ...rays: [RayCastDirection, RayCastDirection, number | undefined][]) =>
+    flattenArray(rays.map(([x, y, length]) =>
+        rayCast(state, [piece.file, piece.rank], [x, y], length)
+        .map<PieceMovement | undefined>(([file, rank, otherPiece]) => {
+            if (otherPiece?.player === piece.player) return undefined;
+
+            return {
+                movedPieces: [{ from: [piece.file, piece.rank], to: [file, rank], piece }],
+                capturedPieces: otherPiece ? [otherPiece] : [],
+            };
+        })
+        .filter((result): result is PieceMovement => typeof result !== 'undefined')));

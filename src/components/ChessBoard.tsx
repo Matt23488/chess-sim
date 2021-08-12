@@ -1,7 +1,7 @@
-import React, { useMemo, CSSProperties } from 'react';
+import React, { useMemo } from 'react';
 import { Rank, File } from '../chess/game';
 import './css/ChessBoard.css';
-import { ReactChessPiece } from '../utils/hooks';
+import { ChessHook } from '../utils/hooks';
 
 const ChessBoard: React.FC<ChessBoardProperties> = props => {
     const grid = useMemo(() => Array(8 * 8).fill(0).map((_, i) => {
@@ -13,23 +13,19 @@ const ChessBoard: React.FC<ChessBoardProperties> = props => {
 
     return (
         <div className="ChessBoard">
-            {Array(8).fill(0).map((_,i) => <div className={`ChessBoard__Cell ChessBoard__RankIndicator ChessBoard__Rank${rankLookup.get(i)}`}>{rankLookup.get(i)}</div>)}
-            {Array(8).fill(0).map((_,i) => <div className={`ChessBoard__Cell ChessBoard__FileIndicator ChessBoard__File${fileLookup.get(i)?.toUpperCase()}`}>{fileLookup.get(i)}</div>)}
-            {grid.map(([file, rank, colNum, rowNum]) => {
-                const unHighlightedColor = (colNum + rowNum) % 2 === 0 ? 'beige' : 'brown';
-
-                const gridStyle: CSSProperties = {
-                    backgroundColor: props.getHighlightColor(file, rank) ?? unHighlightedColor,
-                };
-
+            {Array(8).fill(0).map((_,i) => <div key={`ri${i}`} className={`ChessBoard__Cell ChessBoard__RankIndicator ChessBoard__Rank${rankLookup.get(i)}`}>{rankLookup.get(i)}</div>)}
+            {Array(8).fill(0).map((_,i) => <div key={`fi${i}`} className={`ChessBoard__Cell ChessBoard__FileIndicator ChessBoard__File${fileLookup.get(i)?.toUpperCase()}`}>{fileLookup.get(i)}</div>)}
+            {grid.map(([file, rank]) => {
+                const positionProps = props.chessGame.getPositionProperties(file, rank);
+                
                 return (
                     <div
                         key={`${file}${rank}`}
                         className={`ChessBoard__Cell ChessBoard__File${file.toUpperCase()} ChessBoard__Rank${rank}`}
-                        style={gridStyle}
-                        onClick={() => props.onClickCell(file, rank)}
+                        style={{ backgroundColor: positionProps.backgroundColor }}
+                        onClick={() => props.onCellClick(file, rank)}
                     >
-                        {props.pieces.find(({ file: f, rank: r }) => f === file && r === rank)?.render()}
+                        {positionProps.renderedPiece}
                     </div>
                 );
             })}
@@ -60,9 +56,8 @@ const fileLookup: Map<number, File> = new Map([
 ]);
 
 interface ChessBoardProperties {
-    onClickCell: (file: File, rank: Rank) => void;
-    getHighlightColor: (file: File, rank: Rank) => string | undefined;
-    pieces: ReactChessPiece[];
+    onCellClick: (file: File, rank: Rank) => void;
+    chessGame: ChessHook;
 }
 
 export default ChessBoard;
