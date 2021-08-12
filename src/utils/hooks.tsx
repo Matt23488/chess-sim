@@ -85,6 +85,7 @@ export const useChessGame: () => ChessHook = () => {
             if (game.undo()) setTurnNumber(turnNumber - 1);
         },
         turnNumber,
+        playerTurn: game.getPlayerTurn(),
     };
 
     return hook;
@@ -132,6 +133,7 @@ export interface ChessHook {
     selectPosition: (file: File, rank: Rank) => void;
     undo: () => void;
     turnNumber: number;
+    playerTurn: Player;
 }
 
 export interface PositionProperties {

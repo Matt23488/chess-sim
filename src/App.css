@@ -2,12 +2,13 @@
   width: 100vw;
   height: 100vh;
   display: flex;
+  flex-direction: column;
   justify-content: center;
   align-items: center;
 }
 
-.ChessBoardContainer {
-  width: calc(min(100vw - 20px, 100vh - 20px));
-  height: calc(min(100vw - 20px, 100vh - 20px));
-  /* border: 1px solid black; */
+.App__Info {
+  display: flex;
+  justify-content: space-between;
+  width: calc(100vmin - 100px);
 }

@@ -1,5 +1,5 @@
 import React, { useMemo } from 'react';
-import { Rank, File } from '../chess/game';
+import { Rank, File, Player } from '../chess/game';
 import './css/ChessBoard.css';
 import { ChessHook } from '../utils/hooks';
 
@@ -8,20 +8,20 @@ const ChessBoard: React.FC<ChessBoardProperties> = props => {
         const x = i % 8;
         const y = Math.floor(i / 8);
     
-        return [fileLookup.get(x)!, rankLookup.get(y)!, x, y] as [File, Rank, number, number];
+        return [fileLookup.get(x)!, rankLookup.get(y)!] as [File, Rank];
     }), []);
 
     return (
         <div className="ChessBoard">
-            {Array(8).fill(0).map((_,i) => <div key={`ri${i}`} className={`ChessBoard__Cell ChessBoard__RankIndicator ChessBoard__Rank${rankLookup.get(i)}`}>{rankLookup.get(i)}</div>)}
-            {Array(8).fill(0).map((_,i) => <div key={`fi${i}`} className={`ChessBoard__Cell ChessBoard__FileIndicator ChessBoard__File${fileLookup.get(i)?.toUpperCase()}`}>{fileLookup.get(i)}</div>)}
+            {Array(8).fill(0).map((_,i) => <div key={`ri${i}`} className={`ChessBoard__Cell ChessBoard__Perspective${props.perspective} ChessBoard__RankIndicator ChessBoard__Rank${rankLookup.get(i)}`}>{rankLookup.get(i)}</div>)}
+            {Array(8).fill(0).map((_,i) => <div key={`fi${i}`} className={`ChessBoard__Cell ChessBoard__Perspective${props.perspective} ChessBoard__FileIndicator ChessBoard__File${fileLookup.get(i)?.toUpperCase()}`}>{fileLookup.get(i)}</div>)}
             {grid.map(([file, rank]) => {
                 const positionProps = props.chessGame.getPositionProperties(file, rank);
                 
                 return (
                     <div
                         key={`${file}${rank}`}
-                        className={`ChessBoard__Cell ChessBoard__File${file.toUpperCase()} ChessBoard__Rank${rank}`}
+                        className={`ChessBoard__Cell ChessBoard__Perspective${props.perspective} ChessBoard__File${file.toUpperCase()} ChessBoard__Rank${rank}`}
                         style={{ backgroundColor: positionProps.backgroundColor }}
                         onClick={() => props.onCellClick(file, rank)}
                     >
@@ -58,6 +58,7 @@ const fileLookup: Map<number, File> = new Map([
 interface ChessBoardProperties {
     onCellClick: (file: File, rank: Rank) => void;
     chessGame: ChessHook;
+    perspective: Player;
 }
 
 export default ChessBoard;
