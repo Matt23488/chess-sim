@@ -1,0 +1,13 @@
+.App {
+  width: 100vw;
+  height: 100vh;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+}
+
+.ChessBoardContainer {
+  width: calc(min(100vw - 20px, 100vh - 20px));
+  height: calc(min(100vw - 20px, 100vh - 20px));
+  /* border: 1px solid black; */
+}
