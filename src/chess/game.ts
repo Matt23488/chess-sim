@@ -92,7 +92,7 @@ const standardRules: GameRule[] = [
 
             targets.forEach(([file, rank]) => {
                 const otherPiece = state.positionLookup.get(`${file}${rank}`);
-                if (!otherPiece) return;
+                if (!otherPiece || otherPiece.player === piece.player) return;
 
                 piece.possibleMoves.push({
                     movedPieces: [{
@@ -196,7 +196,83 @@ const standardRules: GameRule[] = [
                 [1, 1, 1], [-1, 1, 1], [1, -1, 1], [-1, -1, 1],
             ));
         },
-    }, // TODO: Castling again
+    }, {
+        name: 'King Castle',
+        pieceType: 'king',
+        apply: (piece, state) => { // TODO: don't allow if King is in check. Can't castle out of check, so even if it takes you out of check it's still invalid.
+            if (piece.moveHistory.length > 0) return;
+
+            const rank = piece.player === 'white' ? 1 : 8;
+
+            // King side
+            let rook = state.positionLookup.get(`h${rank}`);
+            if (rook && rook.moveHistory.length === 0) {
+                const emptySpaces = [
+                    state.positionLookup.get(`f${rank}`),
+                    state.positionLookup.get(`g${rank}`),
+                ];
+                if (!emptySpaces.some(s => s)) {
+                    // TODO: This relies on moves being already calculated for these pieces.
+                    // That is not be guaranteed to happen. Need to build that into the API,
+                    // maybe a life cycle system with defined points to apply game rules
+                    const enemyPieces = state.activePieces.filter(p => p.player !== piece.player);
+                    const intermediateCellUnderAttack = enemyPieces.some(p =>
+                        p.possibleMoves.some(move => {
+                            const [{ to: [ targetFile, targetRank ]}] = move.movedPieces;
+                            return targetFile === 'f' && targetRank === rank;
+                        })
+                    );
+                    if (!intermediateCellUnderAttack) {
+                        piece.possibleMoves.push({
+                            movedPieces: [{
+                                piece,
+                                from: [piece.file, piece.rank],
+                                to: ['g', rank],
+                            }, {
+                                piece: rook,
+                                from: [rook.file, rook.rank],
+                                to: ['f', rank],
+                            }],
+                            capturedPieces: [],
+                        });
+                    }
+                }
+            }
+
+            // Queen side
+            rook = state.positionLookup.get(`a${rank}`);
+            if (rook && rook.moveHistory.length === 0) {
+                const emptySpaces = [
+                    state.positionLookup.get(`b${rank}`),
+                    state.positionLookup.get(`c${rank}`),
+                    state.positionLookup.get(`d${rank}`),
+                ];
+                if (!emptySpaces.some(s => s)) {
+                    const enemyPieces = state.activePieces.filter(p => p.player !== piece.player);
+                    const intermediateCellUnderAttack = enemyPieces.some(p =>
+                        p.possibleMoves.some(move => {
+                            const [{ to: [ targetFile, targetRank ]}] = move.movedPieces;
+                            return targetFile === 'd' && targetRank === rank;
+                        })
+                    );
+                    if (!intermediateCellUnderAttack) {
+                        piece.possibleMoves.push({
+                            movedPieces: [{
+                                piece,
+                                from: [piece.file, piece.rank],
+                                to: ['c', rank],
+                            }, {
+                                piece: rook,
+                                from: [rook.file, rook.rank],
+                                to: ['d', rank],
+                            }],
+                            capturedPieces: [],
+                        });
+                    }
+                }
+            }
+        },
+    }
 ];
 
 // // TODO: Move somewhere else
@@ -207,12 +283,17 @@ const makeUnion = <TBase>() => <TUnion extends TBase>(...values: TUnion[]) => {
     const guard = (value: TBase): value is TUnion => valueSet.has(value);
 
     const unionNamespace = { guard, values };
-    return Object.freeze(unionNamespace as typeof unionNamespace & { type: TUnion });
+    return Object.freeze(unionNamespace as UnionType<TBase, TUnion>);
 };
+
+interface UnionType<TBase, TUnion extends TBase> {
+    values: TUnion[];
+    guard: (value: TBase) => value is TUnion;
+    type: TUnion;
+}
 
 export const Player = makeUnion<string>()('white', 'black');
 export type Player = typeof Player.type; // eslint-disable-line
-export const switchPlayer = (player: Player): Player => player === 'white' ? 'black' : 'white';
 
 export const Rank = makeUnion<number>()(1, 2, 3, 4, 5, 6, 7, 8);
 export type Rank = typeof Rank.type; // eslint-disable-line
@@ -243,7 +324,7 @@ export interface GameState {
     capturedPieces: ActiveGamePiece[];
     positionLookup: Map<string, ActiveGamePiece>;
     history: PieceMovement[];
-    playerTurn: Player;
+    player: PlayerToggle;
 }
 
 export interface SubPieceMovement {
@@ -267,13 +348,28 @@ export interface GameRule {
     apply: (piece: ActiveGamePiece, state: GameState) => void;
 }
 
+interface PlayerToggle {
+    getCurrent: () => Player;
+    toggle: () => void;
+}
+
+const makePlayerToggle = (): PlayerToggle => {
+    let [current, other] = ['white', 'black'] as [Player, Player];
+    return {
+        getCurrent: () => current,
+        toggle: () => {
+            [current, other] = [other, current];
+        },
+    };
+};
+
 export const beginGame = (pieces?: GamePiece[], rules?: GameRule[], includeStandardPiecesAndRules = true) => {
     const state: GameState = {
         activePieces: (includeStandardPiecesAndRules ? standardInitialState : []).concat(pieces ?? []).map(p => ({ ...p, possibleMoves: [], moveHistory: [] })),
         capturedPieces: [],
         positionLookup: new Map<string, ActiveGamePiece>(),
         history: [],
-        playerTurn: 'white',
+        player: makePlayerToggle(),
     };
 
     const allRules = Object.freeze((includeStandardPiecesAndRules ? standardRules : []).concat(rules ?? []));
@@ -292,7 +388,7 @@ export const beginGame = (pieces?: GamePiece[], rules?: GameRule[], includeStand
 
     const game: ChessGame = {
         // state
-        getPlayerTurn: () => state.playerTurn,
+        getPlayerTurn: () => state.player.getCurrent(),
         getCapturedPieces: () => Object.freeze([...state.capturedPieces]),
         getPieceTypeAtPosition: (file, rank) => {
             const piece = state.positionLookup.get(`${file}${rank}`);
@@ -301,7 +397,7 @@ export const beginGame = (pieces?: GamePiece[], rules?: GameRule[], includeStand
         },
         getPossibleMovesAtPosition: (file, rank) => {
             const piece = state.positionLookup.get(`${file}${rank}`);
-            if (!piece || piece.player !== state.playerTurn) return [];
+            if (!piece || piece.player !== state.player.getCurrent()) return [];
             return Object.freeze([...piece.possibleMoves]);
         },
         movePiece: (fromFile, fromRank, toFile, toRank) => {
@@ -323,7 +419,7 @@ export const beginGame = (pieces?: GamePiece[], rules?: GameRule[], includeStand
 
             state.history.push(movement);
             piece.moveHistory.push(movement);
-            state.playerTurn = switchPlayer(state.playerTurn);
+            state.player.toggle();
 
             analyzeNewState();
             return true;
@@ -343,7 +439,7 @@ export const beginGame = (pieces?: GamePiece[], rules?: GameRule[], includeStand
                 piece.rank = rank;
             });
 
-            state.playerTurn = switchPlayer(state.playerTurn);
+            state.player.toggle();
 
             analyzeNewState();
             return true;
