@@ -84,12 +84,8 @@ export const useChessGame: ChessHook = (pieces, customRules, customSvg) => {
         },
 
         selectPosition: (file, rank) => {
-            if (selectedPosition) {
-                if (game.movePiece(...selectedPosition, file, rank)) setTurnNumber(turnNumber + 1);
-                setSelectedPosition(undefined);
-                setBackgroundOverrides([]);
-            } else {
-                const piece = game.getPieceTypeAtPosition(file, rank);
+            const piece = game.getPieceTypeAtPosition(file, rank);
+            const moveSelection = () => {
                 if (!piece || piece[1] !== game.getPlayerTurn()) return;
 
                 const movements = game.getPossibleMovesAtPosition(file, rank);
@@ -107,7 +103,19 @@ export const useChessGame: ChessHook = (pieces, customRules, customSvg) => {
 
                 setSelectedPosition([file, rank]);
                 setBackgroundOverrides([[file, rank, 'green'], ...underAttack, ...selectedPieceDestinations]);
-            }
+            };
+
+            const removeSelection = () => {
+                setSelectedPosition(undefined);
+                setBackgroundOverrides([]);
+            };
+
+            if (selectedPosition && selectedPosition[0] === file && selectedPosition[1] === rank) removeSelection();
+            else if (selectedPosition && piece && piece[1] === game.getPlayerTurn()) moveSelection();
+            else if (selectedPosition) {
+                if (game.movePiece(...selectedPosition, file, rank)) setTurnNumber(turnNumber + 1);
+                removeSelection();
+            } else moveSelection();
         },
         undo: () => {
             if (game.undo()) setTurnNumber(turnNumber - 1);
@@ -160,6 +168,7 @@ export interface ChessReactState {
     selectPosition: (file: File, rank: Rank) => void;
     undo: () => void;
     renderCaptures: (player?: Player) => JSX.Element;
+    // drawArrow
     turnNumber: number;
     playerTurn: Player;
 }
