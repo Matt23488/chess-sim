@@ -3,12 +3,14 @@
   height: 100vh;
   display: flex;
   flex-direction: column;
-  justify-content: center;
+  justify-content: flex-start;
   align-items: center;
 }
 
 .App__Info {
   display: flex;
   justify-content: space-between;
-  width: calc(100vmin - 100px);
+  align-items: center;
+  min-width: var(--grid-width);
+  height: 75px;
 }

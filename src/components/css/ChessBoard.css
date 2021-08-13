@@ -1,8 +1,8 @@
 .ChessBoard {
     display: grid;
     grid-template: repeat(8, 1fr) 2rem / 2rem repeat(8, 1fr);
-    width: calc(100vmin - 100px);
-    height: calc(100vmin - 100px);
+    width: var(--grid-width);
+    height: var(--grid-width);
 }
 
 .ChessBoard__Cell {
