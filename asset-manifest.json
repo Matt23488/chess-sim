@@ -1,17 +1,17 @@
 {
   "files": {
-    "main.css": "/chess-sim/static/css/main.caf4ba9b.chunk.css",
-    "main.js": "/chess-sim/static/js/main.f01a2310.chunk.js",
-    "main.js.map": "/chess-sim/static/js/main.f01a2310.chunk.js.map",
+    "main.css": "/chess-sim/static/css/main.6ceecfb2.chunk.css",
+    "main.js": "/chess-sim/static/js/main.848ce834.chunk.js",
+    "main.js.map": "/chess-sim/static/js/main.848ce834.chunk.js.map",
     "runtime-main.js": "/chess-sim/static/js/runtime-main.2127d445.js",
     "runtime-main.js.map": "/chess-sim/static/js/runtime-main.2127d445.js.map",
-    "static/js/2.511a66cc.chunk.js": "/chess-sim/static/js/2.511a66cc.chunk.js",
-    "static/js/2.511a66cc.chunk.js.map": "/chess-sim/static/js/2.511a66cc.chunk.js.map",
+    "static/js/2.a4bd55d4.chunk.js": "/chess-sim/static/js/2.a4bd55d4.chunk.js",
+    "static/js/2.a4bd55d4.chunk.js.map": "/chess-sim/static/js/2.a4bd55d4.chunk.js.map",
     "static/js/3.123f907b.chunk.js": "/chess-sim/static/js/3.123f907b.chunk.js",
     "static/js/3.123f907b.chunk.js.map": "/chess-sim/static/js/3.123f907b.chunk.js.map",
     "index.html": "/chess-sim/index.html",
-    "static/css/main.caf4ba9b.chunk.css.map": "/chess-sim/static/css/main.caf4ba9b.chunk.css.map",
-    "static/js/2.511a66cc.chunk.js.LICENSE.txt": "/chess-sim/static/js/2.511a66cc.chunk.js.LICENSE.txt",
+    "static/css/main.6ceecfb2.chunk.css.map": "/chess-sim/static/css/main.6ceecfb2.chunk.css.map",
+    "static/js/2.a4bd55d4.chunk.js.LICENSE.txt": "/chess-sim/static/js/2.a4bd55d4.chunk.js.LICENSE.txt",
     "static/media/bb.449449f5.svg": "/chess-sim/static/media/bb.449449f5.svg",
     "static/media/bk.7b0ec39d.svg": "/chess-sim/static/media/bk.7b0ec39d.svg",
     "static/media/bn.7f7afa43.svg": "/chess-sim/static/media/bn.7f7afa43.svg",
@@ -27,8 +27,8 @@
   },
   "entrypoints": [
     "static/js/runtime-main.2127d445.js",
-    "static/js/2.511a66cc.chunk.js",
-    "static/css/main.caf4ba9b.chunk.css",
-    "static/js/main.f01a2310.chunk.js"
+    "static/js/2.a4bd55d4.chunk.js",
+    "static/css/main.6ceecfb2.chunk.css",
+    "static/js/main.848ce834.chunk.js"
   ]
 }
