@@ -12,16 +12,16 @@ const ChessBoard: React.FC<ChessBoardProperties> = props => {
     }), []);
 
     return (
-        <div className="ChessBoard">
-            {Array(8).fill(0).map((_,i) => <div key={`ri${i}`} className={`ChessBoard__Cell ChessBoard__Perspective${props.perspective} ChessBoard__RankIndicator ChessBoard__Rank${rankLookup.get(i)}`}>{rankLookup.get(i)}</div>)}
-            {Array(8).fill(0).map((_,i) => <div key={`fi${i}`} className={`ChessBoard__Cell ChessBoard__Perspective${props.perspective} ChessBoard__FileIndicator ChessBoard__File${fileLookup.get(i)?.toUpperCase()}`}>{fileLookup.get(i)}</div>)}
+        <div className={`ChessBoard ChessBoard__Perspective${props.perspective}`}>
+            {Array(8).fill(0).map((_,i) => <div key={`ri${i}`} className={`ChessBoard__Cell ChessBoard__RankIndicator ChessBoard__Rank${rankLookup.get(i)}`}>{rankLookup.get(i)}</div>)}
+            {Array(8).fill(0).map((_,i) => <div key={`fi${i}`} className={`ChessBoard__Cell ChessBoard__FileIndicator ChessBoard__File${fileLookup.get(i)?.toUpperCase()}`}>{fileLookup.get(i)}</div>)}
             {grid.map(([file, rank]) => {
                 const positionProps = props.chessGame.getPositionProperties(file, rank);
                 
                 return (
                     <div
                         key={`${file}${rank}`}
-                        className={`ChessBoard__Cell ChessBoard__Perspective${props.perspective} ChessBoard__File${file.toUpperCase()} ChessBoard__Rank${rank}`}
+                        className={`ChessBoard__Cell ChessBoard__File${file.toUpperCase()} ChessBoard__Rank${rank}`}
                         style={{ backgroundColor: positionProps.backgroundColor }}
                         onClick={() => props.onCellClick(file, rank)}
                     >

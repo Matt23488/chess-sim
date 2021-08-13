@@ -1,17 +1,17 @@
-import React, { useState, useMemo, useCallback } from 'react';
+import React, { useState, useMemo, useCallback, CSSProperties } from 'react';
 import { Player, File, Rank, beginGame } from '../chess/game';
-import BlackBishop from '../svg/bb.svg';
-import BlackKing from '../svg/bk.svg';
-import BlackKnight from '../svg/bn.svg';
-import BlackPawn from '../svg/bp.svg';
-import BlackQueen from '../svg/bq.svg';
-import BlackRook from '../svg/br.svg';
-import WhiteBishop from '../svg/wb.svg';
-import WhiteKing from '../svg/wk.svg';
-import WhiteKnight from '../svg/wn.svg';
-import WhitePawn from '../svg/wp.svg';
-import WhiteQueen from '../svg/wq.svg';
-import WhiteRook from '../svg/wr.svg';
+import { ReactComponent as BlackBishop } from '../svg/bb.svg';
+import { ReactComponent as BlackKing } from '../svg/bk.svg';
+import { ReactComponent as BlackKnight } from '../svg/bn.svg';
+import { ReactComponent as BlackPawn } from '../svg/bp.svg';
+import { ReactComponent as BlackQueen } from '../svg/bq.svg';
+import { ReactComponent as BlackRook } from '../svg/br.svg';
+import { ReactComponent as WhiteBishop } from '../svg/wb.svg';
+import { ReactComponent as WhiteKing } from '../svg/wk.svg';
+import { ReactComponent as WhiteKnight } from '../svg/wn.svg';
+import { ReactComponent as WhitePawn } from '../svg/wp.svg';
+import { ReactComponent as WhiteQueen } from '../svg/wq.svg';
+import { ReactComponent as WhiteRook } from '../svg/wr.svg';
 
 export const useRenderTrigger = () => {
     const [,setDummy] = useState(0);
@@ -19,7 +19,7 @@ export const useRenderTrigger = () => {
     return () => setDummy(val => val + 1);
 };
 
-const standardPieceSvg: Record<string, [string, string]> = {
+const standardPieceSvg: Record<string, [typeof WhiteKing, typeof WhiteKing]> = {
     'pawn': [WhitePawn, BlackPawn],
     'rook': [WhiteRook, BlackRook],
     'knight': [WhiteKnight, BlackKnight],
@@ -28,8 +28,18 @@ const standardPieceSvg: Record<string, [string, string]> = {
     'king': [WhiteKing, BlackKing],
 };
 
-const getPieceRenderer = (svg: Record<string, [string, string]>) =>
-    (type: string, player: Player) => svg[type] ? <img src={player === 'white' ? svg[type][0] : svg[type][1]} alt={`${player} ${type}`} /> : null;
+interface PieceProperties {
+    key?: string | number;
+    style?: CSSProperties;
+}
+
+const getPieceRenderer = (svg: Record<string, [typeof WhiteKing, typeof WhiteKing]>) =>
+    (type: string, player: Player, props?: PieceProperties) => {
+        const Svg: typeof WhiteKing | undefined = svg[type] && svg[type][player === 'white' ? 0 : 1];
+        if (!Svg) return null;
+
+        return <Svg key={props?.key} style={props?.style} />;
+    };
 
 const renderStandardPiece = getPieceRenderer(standardPieceSvg);
 
@@ -84,6 +94,17 @@ export const useChessGame: () => ChessHook = () => {
         undo: () => {
             if (game.undo()) setTurnNumber(turnNumber - 1);
         },
+        renderCaptures: player => {
+            const capturedPieces = player ?
+                game.getCapturedPieces().filter(p => p.player === player) :
+                game.getCapturedPieces();
+
+            return (
+                <>
+                    {capturedPieces.map(({ type, player }, i) => renderPiece(type, player, { key: i, style: { width: 'var(--cell-width)', height: 'var(--cell-width)' }}))}
+                </>
+            );
+        },
         turnNumber,
         playerTurn: game.getPlayerTurn(),
     };
@@ -132,6 +153,7 @@ export interface ChessHook {
     getPositionProperties: (file: File, rank: Rank) => PositionProperties;
     selectPosition: (file: File, rank: Rank) => void;
     undo: () => void;
+    renderCaptures: (player?: Player) => JSX.Element;
     turnNumber: number;
     playerTurn: Player;
 }

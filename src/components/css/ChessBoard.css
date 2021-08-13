@@ -9,6 +9,7 @@
     --indicatorBackground: #333;
     --indicatorForeground: white;
     display: flex;
+    position: relative;
 }
 
 .ChessBoard__FileIndicator {
@@ -30,81 +31,81 @@
 }
 
 .ChessBoard__FileA,
-.ChessBoard__FileH.ChessBoard__Perspectiveblack {
+.ChessBoard__Perspectiveblack .ChessBoard__FileH {
     grid-column: 2 / span 1;
 }
 
 .ChessBoard__FileB,
-.ChessBoard__FileG.ChessBoard__Perspectiveblack {
+.ChessBoard__Perspectiveblack .ChessBoard__FileG {
     grid-column: 3 / span 1;
 }
 
 .ChessBoard__FileC,
-.ChessBoard__FileF.ChessBoard__Perspectiveblack {
+.ChessBoard__Perspectiveblack .ChessBoard__FileF {
     grid-column: 4 / span 1;
 }
 
 .ChessBoard__FileD,
-.ChessBoard__FileE.ChessBoard__Perspectiveblack {
+.ChessBoard__Perspectiveblack .ChessBoard__FileE {
     grid-column: 5 / span 1;
 }
 
 .ChessBoard__FileE,
-.ChessBoard__FileD.ChessBoard__Perspectiveblack {
+.ChessBoard__Perspectiveblack .ChessBoard__FileD {
     grid-column: 6 / span 1;
 }
 
 .ChessBoard__FileF,
-.ChessBoard__FileC.ChessBoard__Perspectiveblack {
+.ChessBoard__Perspectiveblack .ChessBoard__FileC {
     grid-column: 7 / span 1;
 }
 
 .ChessBoard__FileG,
-.ChessBoard__FileB.ChessBoard__Perspectiveblack {
+.ChessBoard__Perspectiveblack .ChessBoard__FileB {
     grid-column: 8 / span 1;
 }
 
 .ChessBoard__FileH,
-.ChessBoard__FileA.ChessBoard__Perspectiveblack {
+.ChessBoard__Perspectiveblack .ChessBoard__FileA {
     grid-column: 9 / span 1;
 }
 
 .ChessBoard__Rank1,
-.ChessBoard__Rank8.ChessBoard__Perspectiveblack {
+.ChessBoard__Perspectiveblack .ChessBoard__Rank8 {
     grid-row: 8 / span 1;
 }
 
 .ChessBoard__Rank2,
-.ChessBoard__Rank7.ChessBoard__Perspectiveblack {
+.ChessBoard__Perspectiveblack .ChessBoard__Rank7 {
     grid-row: 7 / span 1;
 }
 
 .ChessBoard__Rank3,
-.ChessBoard__Rank6.ChessBoard__Perspectiveblack {
+.ChessBoard__Perspectiveblack .ChessBoard__Rank6 {
     grid-row: 6 / span 1;
 }
 
 .ChessBoard__Rank4,
-.ChessBoard__Rank5.ChessBoard__Perspectiveblack {
+.ChessBoard__Perspectiveblack .ChessBoard__Rank5 {
     grid-row: 5 / span 1;
 }
 
 .ChessBoard__Rank5,
-.ChessBoard__Rank4.ChessBoard__Perspectiveblack {
+.ChessBoard__Perspectiveblack .ChessBoard__Rank4 {
     grid-row: 4 / span 1;
 }
 
 .ChessBoard__Rank6,
-.ChessBoard__Rank3.ChessBoard__Perspectiveblack {
+.ChessBoard__Perspectiveblack .ChessBoard__Rank3 {
     grid-row: 3 / span 1;
 }
 
 .ChessBoard__Rank7,
-.ChessBoard__Rank2.ChessBoard__Perspectiveblack {
+.ChessBoard__Perspectiveblack .ChessBoard__Rank2 {
     grid-row: 2 / span 1;
 }
 
 .ChessBoard__Rank8,
-.ChessBoard__Rank1.ChessBoard__Perspectiveblack {
+.ChessBoard__Perspectiveblack .ChessBoard__Rank1 {
     grid-row: 1 / span 1;
 }

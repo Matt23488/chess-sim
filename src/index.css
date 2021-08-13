@@ -1,5 +1,6 @@
 :root {
-  --grid-width: min(calc(100vh - 85px), 100vw);
+  --grid-width: min(calc(100vh - 185px), 100vw);
+  --cell-width: calc((var(--grid-width) - 2rem) / 8);
 }
 
 body {

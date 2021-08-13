@@ -28,6 +28,12 @@ const App = () => {
                 chessGame={chessGame}
                 perspective={perspective === 'turn' ? chessGame.playerTurn : perspective}
             />
+            <div
+                style={{ display: 'flex', justifyContent: 'space-between', width: 'var(--grid-width)' }}
+            >
+                <div style={{ width: '50%', display: 'flex' }}>{chessGame.renderCaptures('black')}</div>
+                <div style={{ width: '50%', display: 'flex', flexDirection: 'row-reverse' }}>{chessGame.renderCaptures('white')}</div>
+            </div>
         </div>
     );
 };
