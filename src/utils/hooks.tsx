@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, CSSProperties } from 'react';
-import { Player, File, Rank, beginGame, fileDifference, rankDifference } from '../chess/game';
+import { Player, File, Rank, beginGame, fileDifference, rankDifference, GameRule, GamePiece } from '../chess/game';
 import { ReactComponent as BlackBishop } from '../svg/bb.svg';
 import { ReactComponent as BlackKing } from '../svg/bk.svg';
 import { ReactComponent as BlackKnight } from '../svg/bn.svg';
@@ -13,13 +13,15 @@ import { ReactComponent as WhitePawn } from '../svg/wp.svg';
 import { ReactComponent as WhiteQueen } from '../svg/wq.svg';
 import { ReactComponent as WhiteRook } from '../svg/wr.svg';
 
+export type PieceSVG = typeof WhiteKing;
+
 export const useRenderTrigger = () => {
     const [,setDummy] = useState(0);
 
     return () => setDummy(val => val + 1);
 };
 
-const standardPieceSvg: Record<string, [typeof WhiteKing, typeof WhiteKing]> = {
+const standardPieceSvg: Record<string, [PieceSVG, PieceSVG]> = {
     'pawn': [WhitePawn, BlackPawn],
     'rook': [WhiteRook, BlackRook],
     'knight': [WhiteKnight, BlackKnight],
@@ -33,26 +35,24 @@ interface PieceProperties {
     style?: CSSProperties;
 }
 
-const getPieceRenderer = (svg: Record<string, [typeof WhiteKing, typeof WhiteKing]>) =>
+const getPieceRenderer = (svg: Record<string, [PieceSVG, PieceSVG]>) =>
     (type: string, player: Player, props?: PieceProperties) => {
-        const Svg: typeof WhiteKing | undefined = svg[type] && svg[type][player === 'white' ? 0 : 1];
+        const Svg: PieceSVG | undefined = svg[type] && svg[type][player === 'white' ? 0 : 1];
         if (!Svg) return null;
 
         return <Svg key={props?.key} style={props?.style} />;
     };
 
-const renderStandardPiece = getPieceRenderer(standardPieceSvg);
-
 const numericFileLookup: Record<File, number> = { a: 1, b: 2, c: 3, d: 4, e: 5, f: 6, g: 7, h: 8 };
 
-export const useChessGame: () => ChessHook = () => {
-    const game = useMemo(() => beginGame(), []);
-    const renderPiece = useCallback(renderStandardPiece, []);
+export const useChessGame: ChessHook = (pieces, customRules, customSvg) => {
+    const game = useMemo(() => beginGame(pieces, customRules, true), [pieces, customRules]);
+    const renderPiece = useCallback(getPieceRenderer({ ...standardPieceSvg, ...(customSvg ?? {}) }), [customSvg]); // eslint-disable-line
     const [selectedPosition, setSelectedPosition] = useState<[File, Rank]>();
     const [backgroundOverrides, setBackgroundOverrides] = useState<[File, Rank, string][]>([]);
     const [turnNumber, setTurnNumber] = useState(1);
 
-    const hook: ChessHook = {
+    const hook: ChessReactState = {
         getPositionProperties: (file, rank, rotationOffset) => {
             const backgroundColor = backgroundOverrides.find(([f, r]) => f === file && r === rank)?.[2] ??
                 ((numericFileLookup[file] + rank) % 2 === 0 ? 'brown' : 'beige');
@@ -153,44 +153,9 @@ interface ArrowPrototypeProperties {
     rotationOffset: number;
 }
 
-// export const useCustomChessGame = <TCustom extends CustomPieceType>(pieces: Record<TCustom, PieceMoveCalculator<TCustom>>, svg: Record<TCustom, [string, string]>, initialState: BoardState<StandardPieceType | TCustom>) => {
-//     const game = useMemo(() => withCustomPieces(pieces).beginGame(initialState), []);
-//     const triggerRender = useRenderTrigger();
-//     const renderPiece = useCallback((type: StandardPieceType | TCustom, player: Player) => {
-//         const renderCustomPiece = getPieceRenderer(svg);
-//         if (StandardPieceType.guard(type)) return renderStandardPiece(type, player);
-//         else return renderCustomPiece(type, player);
-//     }, []);
+export type ChessHook = (pieces?: GamePiece[], customRules?: GameRule[], customSvg?: Record<string, [PieceSVG, PieceSVG]>) => ChessReactState;
 
-//     const hook: ChessHook = {
-//         getPiece: useCallback((file, rank) => game.getPiece(file, rank), []),
-
-//         renderPiece: useCallback((file, rank) => {
-//             const piece = game.getPiece(file, rank);
-//             if (piece) {
-//                 const { type, player } = piece;
-//                 return renderPiece(type, player);
-//             } else return null;
-//         }, []),
-
-//         movePiece: useCallback((from, to) => {
-//             game.movePiece(from, to);
-//             triggerRender();
-//         }, []),
-
-//         undo: useCallback(() => {
-//             game.undo();
-//             triggerRender();
-//         }, []),
-
-//         pieces: game.pieces.map(({ file, rank, type, player }) => ({ file, rank, render: () => renderPiece(type, player) })),
-//         capturedPieces: game.capturedPieces.map(({ file, rank, type, player }) => ({ file, rank, render: () => renderPiece(type, player) })),
-//     };
-
-//     return hook;
-// };
-
-export interface ChessHook {
+export interface ChessReactState {
     getPositionProperties: (file: File, rank: Rank, arrowRotationOffset?: number) => PositionProperties;
     selectPosition: (file: File, rank: Rank) => void;
     undo: () => void;

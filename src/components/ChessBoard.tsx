@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Rank, File, Player } from '../chess/game';
 import './css/ChessBoard.css';
-import { ChessHook } from '../utils/hooks';
+import { ChessReactState } from '../utils/hooks';
 
 const ChessBoard: React.FC<ChessBoardProperties> = props => {
     const grid = useMemo(() => Array(8 * 8).fill(0).map((_, i) => {
@@ -57,7 +57,7 @@ const fileLookup: Map<number, File> = new Map([
 
 interface ChessBoardProperties {
     onCellClick: (file: File, rank: Rank) => void;
-    chessGame: ChessHook;
+    chessGame: ChessReactState;
     perspective: Player;
 }
 

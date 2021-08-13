@@ -332,7 +332,8 @@ export const fileDifference = (a: File, b: File) =>
     .with(['h', 'c'], ['g', 'b'], ['f', 'a'], () => -5)
     .with(['h', 'b'], ['g', 'a'], () => -6)
     .with(['h', 'a'], () => -7)
-    .otherwise(() => 0);
+    .with(['a', 'a'], ['b', 'b'], ['c', 'c'], ['d', 'd'], ['e', 'e'], ['f', 'f'], ['g', 'g'], ['h', 'h'], () => 0)
+    .exhaustive();
 
 export const rankDifference = (a: Rank, b: Rank) => b - a;
 
@@ -490,7 +491,7 @@ export interface ChessGame {
     undo: () => boolean;
 }
 
-const rayCast = (state: GameState, [file, rank]: [File, Rank], [x, y]: [RayCastDirection, RayCastDirection], length?: number) => {
+export const rayCast = (state: GameState, [file, rank]: [File, Rank], [x, y]: [RayCastDirection, RayCastDirection], length?: number) => {
     length = length ?? 8;
     const validSpaces: [File, Rank, ActiveGamePiece | undefined][] = [];
 
@@ -511,7 +512,7 @@ const rayCast = (state: GameState, [file, rank]: [File, Rank], [x, y]: [RayCastD
     return validSpaces;
 };
 
-const multiRayCast = (piece: ActiveGamePiece, state: GameState, ...rays: [RayCastDirection, RayCastDirection, number | undefined][]) =>
+export const multiRayCast = (piece: ActiveGamePiece, state: GameState, ...rays: [RayCastDirection, RayCastDirection, number | undefined][]) =>
     flattenArray(rays.map(([x, y, length]) =>
         rayCast(state, [piece.file, piece.rank], [x, y], length)
         .map<PieceMovement | undefined>(([file, rank, otherPiece]) => {
