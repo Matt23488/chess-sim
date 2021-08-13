@@ -8,7 +8,7 @@ const ChessBoard: React.FC<ChessBoardProperties> = props => {
         const x = i % 8;
         const y = Math.floor(i / 8);
     
-        return [fileLookup.get(x)!, rankLookup.get(y)!] as [File, Rank];
+        return [fileLookup.get(x)!, rankLookup.get(y)!, x, y] as [File, Rank, number, number];
     }), []);
 
     return (
@@ -16,7 +16,7 @@ const ChessBoard: React.FC<ChessBoardProperties> = props => {
             {Array(8).fill(0).map((_,i) => <div key={`ri${i}`} className={`ChessBoard__Cell ChessBoard__RankIndicator ChessBoard__Rank${rankLookup.get(i)}`}>{rankLookup.get(i)}</div>)}
             {Array(8).fill(0).map((_,i) => <div key={`fi${i}`} className={`ChessBoard__Cell ChessBoard__FileIndicator ChessBoard__File${fileLookup.get(i)?.toUpperCase()}`}>{fileLookup.get(i)}</div>)}
             {grid.map(([file, rank]) => {
-                const positionProps = props.chessGame.getPositionProperties(file, rank);
+                const positionProps = props.chessGame.getPositionProperties(file, rank, props.perspective === 'white' ? 0 : Math.PI);
                 
                 return (
                     <div

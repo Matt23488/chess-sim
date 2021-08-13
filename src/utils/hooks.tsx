@@ -1,5 +1,5 @@
 import React, { useState, useMemo, useCallback, CSSProperties } from 'react';
-import { Player, File, Rank, beginGame } from '../chess/game';
+import { Player, File, Rank, beginGame, fileDifference, rankDifference } from '../chess/game';
 import { ReactComponent as BlackBishop } from '../svg/bb.svg';
 import { ReactComponent as BlackKing } from '../svg/bk.svg';
 import { ReactComponent as BlackKnight } from '../svg/bn.svg';
@@ -53,12 +53,30 @@ export const useChessGame: () => ChessHook = () => {
     const [turnNumber, setTurnNumber] = useState(1);
 
     const hook: ChessHook = {
-        getPositionProperties: (file, rank) => {
+        getPositionProperties: (file, rank, rotationOffset) => {
             const backgroundColor = backgroundOverrides.find(([f, r]) => f === file && r === rank)?.[2] ??
                 ((numericFileLookup[file] + rank) % 2 === 0 ? 'brown' : 'beige');
                 
             const piece = game.getPieceTypeAtPosition(file, rank);
-            const renderedPiece = piece ? renderPiece(...piece) : null
+            let renderedPiece = piece ? renderPiece(...piece) : null
+
+            if (selectedPosition && selectedPosition[0] === file && selectedPosition[1] === rank) {
+                const movements = game.getPossibleMovesAtPosition(file, rank);
+                renderedPiece = (
+                    <>
+                        {renderedPiece}
+                        {movements.map((movement, i) => (
+                            <ArrowPrototype
+                                key={i}
+                                from={movement.movedPieces[0].from}
+                                to={movement.movedPieces[0].to}
+                                rotationOffset={rotationOffset ?? 0}
+                            />
+                        ))}
+                    </>
+                );
+            }
+
             return {
                 backgroundColor,
                 renderedPiece,
@@ -112,6 +130,29 @@ export const useChessGame: () => ChessHook = () => {
     return hook;
 };
 
+const ArrowPrototype: React.FC<ArrowPrototypeProperties> = props => {
+    const dx = fileDifference(props.from[0], props.to[0]);
+    const dy = rankDifference(props.from[1], props.to[1]);
+    const length = Math.sqrt(dx*dx + dy*dy);
+    const angle = -Math.atan2(dy, dx) + props.rotationOffset;
+
+    return (
+        <div
+            className="Arrow"
+            style={{
+                width: `calc((${length} * var(--cell-width)) - 2rem)`,
+                transform: `rotate(${angle}rad)`,
+            }}
+        />
+    );
+};
+
+interface ArrowPrototypeProperties {
+    from: [File, Rank];
+    to: [File, Rank];
+    rotationOffset: number;
+}
+
 // export const useCustomChessGame = <TCustom extends CustomPieceType>(pieces: Record<TCustom, PieceMoveCalculator<TCustom>>, svg: Record<TCustom, [string, string]>, initialState: BoardState<StandardPieceType | TCustom>) => {
 //     const game = useMemo(() => withCustomPieces(pieces).beginGame(initialState), []);
 //     const triggerRender = useRenderTrigger();
@@ -150,7 +191,7 @@ export const useChessGame: () => ChessHook = () => {
 // };
 
 export interface ChessHook {
-    getPositionProperties: (file: File, rank: Rank) => PositionProperties;
+    getPositionProperties: (file: File, rank: Rank, arrowRotationOffset?: number) => PositionProperties;
     selectPosition: (file: File, rank: Rank) => void;
     undo: () => void;
     renderCaptures: (player?: Player) => JSX.Element;

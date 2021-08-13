@@ -14,3 +14,27 @@
   min-width: var(--grid-width);
   height: 75px;
 }
+
+.Arrow {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  height: 1rem;
+  /* width is set inline */
+  background-color: purple;
+  transform-origin: center left;
+  /* transform is set inline */
+  z-index: 10;
+}
+
+.Arrow::after {
+  content: '';
+  position: absolute;
+  right: -2rem;
+  top: 50%;
+  transform: translateY(-50%);
+  width: 2rem;
+  height: 2rem;
+  background-color: purple;
+  clip-path: polygon(0 0, 100% 50%, 0 100%);
+}

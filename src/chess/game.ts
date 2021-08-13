@@ -295,13 +295,13 @@ interface UnionType<TBase, TUnion extends TBase> {
 export const Player = makeUnion<string>()('white', 'black');
 export type Player = typeof Player.type; // eslint-disable-line
 
-export const Rank = makeUnion<number>()(1, 2, 3, 4, 5, 6, 7, 8);
-export type Rank = typeof Rank.type; // eslint-disable-line
-
 export const File = makeUnion<string>()('a', 'b', 'c', 'd', 'e', 'f', 'g', 'h');
 export type File = typeof File.type; // eslint-disable-line
 
-const offsetFile = (file: File, amount: number) =>
+export const Rank = makeUnion<number>()(1, 2, 3, 4, 5, 6, 7, 8);
+export type Rank = typeof Rank.type; // eslint-disable-line
+
+export const offsetFile = (file: File, amount: number) =>
     match<[File, number], File | undefined>([file, amount])
     .with(['a', 0], ['b', -1], ['c', -2], ['d', -3], ['e', -4], ['f', -5], ['g', -6], ['h', -7], () => 'a')
     .with(['a', 1], ['b', 0], ['c', -1], ['d', -2], ['e', -3], ['f', -4], ['g', -5], ['h', -6], () => 'b')
@@ -313,8 +313,28 @@ const offsetFile = (file: File, amount: number) =>
     .with(['a', 7], ['b', 6], ['c', 5], ['d', 4], ['e', 3], ['f', 2], ['g', 1], ['h', 0], () => 'h')
     .otherwise(() => undefined);
 
-const offsetRank = (rank: Rank, amount: number) =>
+export const offsetRank = (rank: Rank, amount: number) =>
     Rank.guard(rank + amount) ? rank + amount as Rank : undefined;
+
+export const fileDifference = (a: File, b: File) =>
+    match<[File, File], number>([a, b])
+    .with(['a', 'b'], ['b', 'c'], ['c', 'd'], ['d', 'e'], ['e', 'f'], ['f', 'g'], ['g', 'h'], () => 1)
+    .with(['a', 'c'], ['b', 'd'], ['c', 'e'], ['d', 'f'], ['e', 'g'], ['f', 'h'], () => 2)
+    .with(['a', 'd'], ['b', 'e'], ['c', 'f'], ['d', 'g'], ['e', 'h'], () => 3)
+    .with(['a', 'e'], ['b', 'f'], ['c', 'g'], ['d', 'h'], () => 4)
+    .with(['a', 'f'], ['b', 'g'], ['c', 'h'], () => 5)
+    .with(['a', 'g'], ['b', 'h'], () => 6)
+    .with(['a', 'h'], () => 7)
+    .with(['h', 'g'], ['g', 'f'], ['f', 'e'], ['e', 'd'], ['d', 'c'], ['c', 'b'], ['b', 'a'], () => -1)
+    .with(['h', 'f'], ['g', 'e'], ['f', 'd'], ['e', 'c'], ['d', 'b'], ['c', 'a'], () => -2)
+    .with(['h', 'e'], ['g', 'd'], ['f', 'c'], ['e', 'b'], ['d', 'a'], () => -3)
+    .with(['h', 'd'], ['g', 'c'], ['f', 'b'], ['e', 'a'], () => -4)
+    .with(['h', 'c'], ['g', 'b'], ['f', 'a'], () => -5)
+    .with(['h', 'b'], ['g', 'a'], () => -6)
+    .with(['h', 'a'], () => -7)
+    .otherwise(() => 0);
+
+export const rankDifference = (a: Rank, b: Rank) => b - a;
 
 const RayCastDirection = makeUnion<number>()(-1, 0, 1);
 type RayCastDirection = typeof RayCastDirection.type; // eslint-disable-line
@@ -329,8 +349,8 @@ export interface GameState {
 
 export interface SubPieceMovement {
     piece: ActiveGamePiece;
-    from: readonly [File, Rank];
-    to: readonly [File, Rank];
+    from: [File, Rank];
+    to: [File, Rank];
 }
 
 export interface PieceMovement {
