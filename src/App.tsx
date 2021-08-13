@@ -25,6 +25,8 @@ const App = () => {
             </div>
             <ChessBoard
                 onCellClick={chessGame.selectPosition}
+                onCellMouseOver={chessGame.previewPosition}
+                onCellMouseOut={chessGame.unpreviewPosition}
                 chessGame={chessGame}
                 perspective={perspective === 'turn' ? chessGame.playerTurn : perspective}
             />

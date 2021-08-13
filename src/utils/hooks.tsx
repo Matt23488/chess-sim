@@ -51,6 +51,7 @@ export const useChessGame: ChessHook = (pieces, customRules, customSvg) => {
     const [selectedPosition, setSelectedPosition] = useState<[File, Rank]>();
     const [backgroundOverrides, setBackgroundOverrides] = useState<[File, Rank, string][]>([]);
     const [turnNumber, setTurnNumber] = useState(1);
+    const [previewedPosition, setPreviewedPosition] = useState<[File, Rank]>();
 
     const hook: ChessReactState = {
         getPositionProperties: (file, rank, rotationOffset) => {
@@ -58,24 +59,18 @@ export const useChessGame: ChessHook = (pieces, customRules, customSvg) => {
                 ((numericFileLookup[file] + rank) % 2 === 0 ? 'brown' : 'beige');
                 
             const piece = game.getPieceTypeAtPosition(file, rank);
-            let renderedPiece = piece ? renderPiece(...piece) : null
+            let renderedPiece = piece ? renderPiece(...piece) : null;
 
-            if (selectedPosition && selectedPosition[0] === file && selectedPosition[1] === rank) {
-                const movements = game.getPossibleMovesAtPosition(file, rank);
-                renderedPiece = (
-                    <>
-                        {renderedPiece}
-                        {movements.map((movement, i) => (
-                            <ArrowPrototype
-                                key={i}
-                                from={movement.movedPieces[0].from}
-                                to={movement.movedPieces[0].to}
-                                rotationOffset={rotationOffset ?? 0}
-                            />
-                        ))}
-                    </>
-                );
-            }
+            if (previewedPosition && selectedPosition && selectedPosition[0] === file && selectedPosition[1] === rank) renderedPiece = (
+                <>
+                    {renderedPiece}
+                    <ArrowPrototype
+                        from={selectedPosition}
+                        to={previewedPosition}
+                        rotationOffset={rotationOffset ?? 0}
+                    />
+                </>
+            );
 
             return {
                 backgroundColor,
@@ -108,6 +103,7 @@ export const useChessGame: ChessHook = (pieces, customRules, customSvg) => {
             const removeSelection = () => {
                 setSelectedPosition(undefined);
                 setBackgroundOverrides([]);
+                setPreviewedPosition(undefined);
             };
 
             if (selectedPosition && selectedPosition[0] === file && selectedPosition[1] === rank) removeSelection();
@@ -117,9 +113,22 @@ export const useChessGame: ChessHook = (pieces, customRules, customSvg) => {
                 removeSelection();
             } else moveSelection();
         },
+
+        previewPosition: (file, rank) => {
+            if (!selectedPosition) return;
+
+            const movements = game.getPossibleMovesAtPosition(...selectedPosition)!;
+            if (!movements.some(movement => movement.movedPieces[0].to[0] === file && movement.movedPieces[0].to[1] === rank)) return;
+
+            setPreviewedPosition([file, rank]);
+        },
+
+        unpreviewPosition: () => setPreviewedPosition(undefined),
+
         undo: () => {
             if (game.undo()) setTurnNumber(turnNumber - 1);
         },
+
         renderCaptures: player => {
             const capturedPieces = player ?
                 game.getCapturedPieces().filter(p => p.player === player) :
@@ -166,9 +175,10 @@ export type ChessHook = (pieces?: GamePiece[], customRules?: GameRule[], customS
 export interface ChessReactState {
     getPositionProperties: (file: File, rank: Rank, arrowRotationOffset?: number) => PositionProperties;
     selectPosition: (file: File, rank: Rank) => void;
+    previewPosition: (file: File, rank: Rank) => void; // TODO: Not sure about the API here.
+    unpreviewPosition: () => void;
     undo: () => void;
     renderCaptures: (player?: Player) => JSX.Element;
-    // drawArrow
     turnNumber: number;
     playerTurn: Player;
 }

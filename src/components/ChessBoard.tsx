@@ -24,6 +24,8 @@ const ChessBoard: React.FC<ChessBoardProperties> = props => {
                         className={`ChessBoard__Cell ChessBoard__File${file.toUpperCase()} ChessBoard__Rank${rank}`}
                         style={{ backgroundColor: positionProps.backgroundColor }}
                         onClick={() => props.onCellClick(file, rank)}
+                        onMouseOver={() => props.onCellMouseOver(file, rank)}
+                        onMouseOut={() => props.onCellMouseOut(file, rank)}
                     >
                         {positionProps.renderedPiece}
                     </div>
@@ -57,6 +59,8 @@ const fileLookup: Map<number, File> = new Map([
 
 interface ChessBoardProperties {
     onCellClick: (file: File, rank: Rank) => void;
+    onCellMouseOver: (file: File, rank: Rank) => void;
+    onCellMouseOut: (file: File, rank: Rank) => void;
     chessGame: ChessReactState;
     perspective: Player;
 }
